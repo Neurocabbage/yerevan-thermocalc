@@ -1,25 +1,25 @@
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
+// Проверка наличия Telegram WebApp
+if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+}
 
-// Климатические константы Еревана и Тарифы Армении
 const CLIMATE = { tempInside: 22, tempOutside: -15, heatingDays: 136, tempAverage: 2.1 };
 const TARIFS = { gas: 143.7, electricity: 48.48 };
 
-// Базовые теплопроводности (Лямбда, Вт/м*°C). Меньше число — материал лучше держит тепло.
 const LAMBDA = {
-    panel_concrete: 0.47, // Советский керамзитобетон для панелей
-    tuff: 0.65,           // Армянский вулканический туф
-    concrete: 1.69,       // Сплошной тяжелый железобетон (перекрытия)
-    brick: 0.70,          // Кирпич красный
-    minvata: 0.045,       // Минеральная теплоизоляция
-    penoplex: 0.035,      // Утеплитель ЭППС / Пенопласт
-    plaster: 0.75         // Штукатурка, финишная стяжка
+    panel_concrete: 0.47,
+    tuff: 0.65,
+    concrete: 1.69,
+    brick: 0.70,
+    minvata: 0.045,
+    penoplex: 0.035,
+    plaster: 0.75
 };
 
 const WINDOWS_R = { single_old: 0.25, double_glazed: 0.42, energy_efficient: 0.75 };
 
-// Строка выбора для инъекции слоев в UI смартфона
+// Чистый шаблон строк материалов БЕЗ вызова функций
 const MATERIAL_OPTIONS_HTML = `
     <select class="mat-select">
         <option value="panel_concrete">Панель (Керамзитобетон СССР)</option>
@@ -35,6 +35,7 @@ const MATERIAL_OPTIONS_HTML = `
 
 function addLayerToElement(button) {
     const layersContainer = button.previousElementSibling;
+    if (!layersContainer) return;
     const div = document.createElement('div');
     div.className = 'layer-row';
     div.innerHTML = MATERIAL_OPTIONS_HTML;
@@ -43,6 +44,7 @@ function addLayerToElement(button) {
 
 function addStaticLayer(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     const div = document.createElement('div');
     div.className = 'layer-row';
     div.innerHTML = MATERIAL_OPTIONS_HTML;
@@ -51,11 +53,12 @@ function addStaticLayer(containerId) {
 
 function addNewWall() {
     const container = document.getElementById('wallsContainer');
+    if (!container) return;
     const div = document.createElement('div');
     div.className = 'sub-block wall-item';
     div.innerHTML = `
         <div class="form-group">
-            <label>Название/Имя этой стены:</label>
+            <label>Название этой стены:</label>
             <input type="text" class="wall-name" value="Дополнительная стена">
         </div>
         <div class="form-group">
@@ -83,6 +86,7 @@ function addNewWall() {
 
 function addNewDoor() {
     const container = document.getElementById('doorsContainer');
+    if (!container) return;
     const div = document.createElement('div');
     div.className = 'sub-block door-item';
     div.innerHTML = `
@@ -115,225 +119,118 @@ function addNewDoor() {
 }
 
 function calculateRFromLayersContainer(layersDiv) {
+    if (!layersDiv) return 0.158;
     const rows = layersDiv.getElementsByClassName('layer-row');
-    let totalR = 0.158; // постоянное внутреннее и наружное теплосопротивление воздуха
-    for (let row of rows) {
-        const material = row.querySelector('.mat-select').value;
-        const thicknessCm = parseFloat(row.querySelector('.mat-thick').value) || 0;
-        if (thicknessCm > 0) {
-            totalR += ((thicknessCm / 100) / LAMBDA[material]);
-        }
-    }
-    return totalR;
-}
-
-function runCalculation() {
-    const deltaTPeak = CLIMATE.tempInside - CLIMATE.tempOutside;
-    const deltaTAverage = CLIMATE.tempInside - CLIMATE.tempAverage;
-
-    let peakLossNoVent = 0;
-    let avgLoss = 0;
-    
-    let htmlDetails = "<h4>Промежуточные пиковые потери (при -15°C):</h4>";
-
-    // 1. Расчет всех созданных стен
-    const wallItems = document.getElementsByClassName('wall-item');
-    for (let item of wallItems) {
-        const name = item.querySelector('.wall-name').value || "Стена";
-        const area = parseFloat(item.querySelector('.wall-area').value) || 0;
-        const corr = parseFloat(item.querySelector('.wall-env').value);
-        const layersDiv = item.querySelector('.wall-layers');
-        const R_wall = calculateRFromLayersContainer(layersDiv);
-
-        if (area > 0) {
-            const wallPeak = (area * deltaTPeak * corr) / R_wall;
-            peakLossNoVent += wallPeak;
-            avgLoss += (area * deltaTAverage * corr) / R_wall;
-            htmlDetails += `🧱 ${name}: <b>${Math.round(wallPeak)} Вт</b> (R=${R_wall.toFixed(2)})<br>`;
-        }
-    }
-
-    // 2. Окна
-    const windowsArea = parseFloat(document.getElementById('windowsArea').value) || 0;
-    const R_window = WINDOWS_R[document.getElementById('windowsType').value];
-    if (windowsArea > 0) {
-        const windowPeak = (windowsArea * deltaTPeak * 1.0) / R_window;
-        peakLossNoVent += windowPeak;
-        avgLoss += (windowsArea * deltaTAverage * 1.0) / R_window;
-        htmlDetails += `🪟 Окна: <b>${Math.round(windowPeak)} Вт</b> (R=${R_window.toFixed(2)})<br>`;
-    }
-
-    // 3. Расчет всех созданных дверей
-    const doorItems = document.getElementsByClassName('door-item');
-    for (let item of doorItems) {
-        const name = item.querySelector('.door-name').value || "Дверь";
-        const area = parseFloat(item.querySelector('.door-area').value) || 0;
-        const corr = parseFloat(item.querySelector('.door-env').value);
-        const R_door = parseFloat(item.querySelector('.door-type').value);
-
-        if (area > 0) {
-            const doorPeak = (area * deltaTPeak * corr) / R_door;
-            peakLossNoVent += doorPeak;
-            avgLoss += (area * deltaTAverage * corr) / R_door;
-            htmlDetails += `🚪 ${name}: <b>${Math.round(doorPeak)} Вт</b> (R=${R_door.toFixed(2)})<br>`;
-        }
-    }
-
-    // 4. Потолок сверху
-    const ceilingArea = parseFloat(document.getElementById('ceilingArea').value) || 0;
-    const ceilingCorr = parseFloat(document.getElementById('ceilingEnvironment').value);
-    const R_ceiling = calculateRFromLayersContainer(document.getElementById('ceilingLayers'));
-    if (ceilingArea > 0 && ceilingCorr > 0) {
-        const ceilingPeak = (ceilingArea * deltaTPeak * ceilingCorr) / R_ceiling;
-        peakLossNoVent += ceilingPeak;
-        avgLoss += (ceilingArea * deltaTAverage * ceilingCorr) / R_ceiling;
-        htmlDetails += `🔼 Потолок: <b>${Math.round(ceilingPeak)} Вт</b> (R=${R_ceiling.toFixed(2)})<br>`;
-    } else {
-        htmlDetails += `🔼 Потолок: <b>0 Вт</b> (Сверху отапливаемые соседи)<br>`;
-    }
-
-    // 5. Пол снизу
-    const floorArea = parseFloat(document.getElementById('floorArea').value) || 0;
-    const floorCorr = parseFloat(document.getElementById('floorEnvironment').value);
-    const R_floor = calculateRFromLayersContainer(document.getElementById('floorLayers'));
-    if (floorArea > 0 && floorCorr > 0) {
-        const floorPeak = (floorArea * deltaTPeak * floorCorr) / R_floor;
-        peakLossNoVent += floorPeak;
-        avgLoss += (floorArea * deltaTAverage * floorCorr) / R_floor;
-        htmlDetails += `🔽 Пол: <b>${Math.round(floorPeak)} Вт</b> (R=${R_floor.toFixed(2)})<br>`;
-    } else {
-        htmlDetails += `🔽 Пол: <b>0 Вт</b> (Снизу отапливаемые соседи)<br>`;
-    }
-
-    // Добавляем инфильтрацию воздуха (+20%)
-    const ventLoss = peakLossNoVent * 0.2;
-    const finalPeakLoss = peakLossNoVent + ventLoss;
-    avgLoss *= 1.2;
-
-    htmlDetails += `💨 Вентиляция/Инфильтрация (+20%): <b>${Math.round(ventLoss)} Вт</b><br>`;
-
-    // Сезонный расход энергии за зиму в кВт*ч
-    const totalKWh = (avgLoss / 1000) * 24 * CLIMATE.heatingDays;
-
-    // Расчет финансовой составляющей в драмах Армении
-    const gasCost = (totalKWh / (9.3 * 0.92)) * TARIFS.gas;
-    const electCost = (totalKWh / 1.0) * TARIFS.electricity;
-    const кондиционерCost = (totalKWh / 2.8) * TARIFS.electricity;
-
-    const out = document.getElementById('output');
-    out.style.display = 'block';
-    out.innerHTML = `
-        <h3>📊 Детализация теплопотерь:</h3>
-        <div class="calc-details">${htmlDetails}</div>
-
-        <h3>🔍 Итоговые результаты:</h3>
-    `;
-    container.appendChild(div);
-}
-
-// Вычисление общего R для многослойной конструкции
-function calculateStructureR(containerId) {
-    const container = document.getElementById(containerId);
-    const rows = container.getElementsByClassName('layer-row');
-    
-    // Внутреннее и внешнее сопротивление воздуха по СНиП (константа ~0.16)
     let totalR = 0.158; 
-
     for (let row of rows) {
-        const material = row.querySelector('.mat-select').value;
-        const thicknessCm = parseFloat(row.querySelector('.mat-thick').value) || 0;
-        
-        if (thicknessCm > 0) {
-            const thicknessMeters = thicknessCm / 100; // Переводим см в метры
-            totalR += (thicknessMeters / LAMBDA[material]); // R = толщина / лямбда
+        const matSelect = row.querySelector('.mat-select');
+        const matThick = row.querySelector('.mat-thick');
+        if (matSelect && matThick) {
+            const material = matSelect.value;
+            const thicknessCm = parseFloat(matThick.value) || 0;
+            if (thicknessCm > 0 && LAMBDA[material]) {
+                totalR += ((thicknessCm / 100) / LAMBDA[material]);
+            }
         }
     }
     return totalR;
 }
 
 function runCalculation() {
-    const deltaTPeak = CLIMATE.tempInside - CLIMATE.tempOutside;
-    const deltaTAverage = CLIMATE.tempInside - CLIMATE.tempAverage;
+    try {
+        const deltaTPeak = CLIMATE.tempInside - CLIMATE.tempOutside;
+        const deltaTAverage = CLIMATE.tempInside - CLIMATE.tempAverage;
 
-    // Считаем итоговые R для каждой конструкции на основе слоев
-    const R_wall = calculateStructureR('wallLayers');
-    const R_ceiling = calculateStructureR('ceilingLayers');
-    const R_floor = calculateStructureR('floorLayers');
-    const R_window = WINDOWS_R[document.getElementById('windowsType').value];
-
-    // Геометрия и коэффициенты окружения (из выпадающих списков)
-    const wallArea = parseFloat(document.getElementById('wallArea').value) || 0;
-    const wallCorr = parseFloat(document.getElementById('wallEnvironment').value);
-
-    const ceilingArea = parseFloat(document.getElementById('ceilingArea').value) || 0;
-    const ceilingCorr = parseFloat(document.getElementById('ceilingEnvironment').value);
-
-    const floorArea = parseFloat(document.getElementById('floorArea').value) || 0;
-    const floorCorr = parseFloat(document.getElementById('floorEnvironment').value);
-
-    const windowsArea = parseFloat(document.getElementById('windowsArea').value) || 0;
-
-    // Расчет теплопотерь в Ваттах
-    let peakLoss = 0;
-    let avgLoss = 0;
-
-    // Стены
-    if (wallArea > 0) {
-        peakLoss += (wallArea * deltaTPeak * wallCorr) / R_wall;
-        avgLoss += (wallArea * deltaTAverage * wallCorr) / R_wall;
-    }
-    // Потолок
-    if (ceilingArea > 0 && ceilingCorr > 0) {
-        peakLoss += (ceilingArea * deltaTPeak * ceilingCorr) / R_ceiling;
-        avgLoss += (ceilingArea * deltaTAverage * ceilingCorr) / R_ceiling;
-    }
-    // Пол
-    if (floorArea > 0 && floorCorr > 0) {
-        peakLoss += (floorArea * deltaTPeak * floorCorr) / R_floor;
-        avgLoss += (floorArea * deltaTAverage * floorCorr) / R_floor;
-    }
-    // Окна (всегда на улицу, коэф. 1.0)
-    if (windowsArea > 0) {
-        peakLoss += (windowsArea * deltaTPeak * 1.0) / R_window;
-        avgLoss += (windowsArea * deltaTAverage * 1.0) / R_window;
-    }
-
-    // Добавляем 20% запаса на инфильтрацию воздуха через вентиляцию
-    peakLoss *= 1.2;
-    avgLoss *= 1.2;
-
-    // Суммарная энергия тепла за отопительный сезон (кВт*ч)
-    const totalKWh = (avgLoss / 1000) * 24 * CLIMATE.heatingDays;
-
-    // Расчет расходов по системам отопления
-    const gasCost = (totalKWh / (9.3 * 0.92)) * TARIFS.gas; // КПД 92%
-    const electCost = (totalKWh / 1.0) * TARIFS.electricity; // Электрокотел КПД 99%
-    const кондиционерCost = (totalKWh / 2.8) * TARIFS.electricity; // Кондиционер зимой (COP=2.8)
-
-    // Отображаем результаты
-    const out = document.getElementById('output');
-    out.style.display = 'block';
-    out.innerHTML = `
-        <h3>Результаты расчетов:</h3>
-        🔹 <b>Пиковые теплопотери квартиры:</b> ${(peakLoss/1000).toFixed(2)} кВт<br>
-        <i>(Это минимальная мощность отопительной системы, которая вам нужна в мороз -15°C)</i><br><br>
-        🔹 <b>Необходимая энергия за зиму:</b> ${Math.round(totalKWh).toLocaleString('ru-RU')} кВт*ч<br>
+        let peakLossNoVent = 0;
+        let avgLoss = 0;
         
-        <h3>💰 Стоимость за сезон (136 дней):</h3>
-        <div class="sys-card">
-            🔥 <b>Газовый котел (Baxi и аналоги):</b><br>
-            Расход газа: ${Math.round(totalKWh / (9.3 * 0.92))} м³<br>
-            Итого: <b>${Math.round(gasCost).toLocaleString('ru-RU')} AMD</b>
-        </div>
-        <div class="sys-card">
-            ⚡ <b>Электрический котел / Теплый пол:</b><br>
-            Расход: ${Math.round(totalKWh)} кВт*ч<br>
-            Итого: <b>${Math.round(electCost).toLocaleString('ru-RU')} AMD</b>
-        </div>
-        <div class="sys-card">
-            ❄️ <b>Инверторный кондиционер (Тепловой насос):</b><br>
-            Расход: ${Math.round(totalKWh / 2.8)} кВт*ч<br>
-            Итого: <b>${Math.round(кондиционерCost).toLocaleString('ru-RU')} AMD</b>
-        </div>
-    `;
-}
+        let htmlDetails = "<h4>Промежуточные пиковые потери (при -15°C):</h4>";
+
+        // 1. Стены
+        const wallItems = document.getElementsByClassName('wall-item');
+        for (let item of wallItems) {
+            const nameEl = item.querySelector('.wall-name');
+            const areaEl = item.querySelector('.wall-area');
+            const envEl = item.querySelector('.wall-env');
+            const layersDiv = item.querySelector('.wall-layers');
+
+            const name = nameEl ? nameEl.value : "Стена";
+            const area = areaEl ? parseFloat(areaEl.value) : 0;
+            const corr = envEl ? parseFloat(envEl.value) : 1.0;
+            const R_wall = calculateRFromLayersContainer(layersDiv);
+
+            if (area > 0 && R_wall > 0) {
+                const wallPeak = (area * deltaTPeak * corr) / R_wall;
+                peakLossNoVent += wallPeak;
+                avgLoss += (area * deltaTAverage * corr) / R_wall;
+                htmlDetails += `🧱 ${name}: <b>${Math.round(wallPeak)} Вт</b> (R=${R_wall.toFixed(2)})<br>`;
+            }
+        }
+
+        // 2. Окна
+        const winAreaEl = document.getElementById('windowsArea');
+        const winTypeEl = document.getElementById('windowsType');
+        const windowsArea = winAreaEl ? parseFloat(winAreaEl.value) : 0;
+        const R_window = winTypeEl ? WINDOWS_R[winTypeEl.value] : 0.42;
+        
+        if (windowsArea > 0) {
+            const windowPeak = (windowsArea * deltaTPeak * 1.0) / R_window;
+            peakLossNoVent += windowPeak;
+            avgLoss += (windowsArea * deltaTAverage * 1.0) / R_window;
+            htmlDetails += `🪟 Окна: <b>${Math.round(windowPeak)} Вт</b> (R=${R_window.toFixed(2)})<br>`;
+        }
+
+        // 3. Двери
+        const doorItems = document.getElementsByClassName('door-item');
+        for (let item of doorItems) {
+            const nameEl = item.querySelector('.door-name');
+            const areaEl = item.querySelector('.door-area');
+            const envEl = item.querySelector('.door-env');
+            const typeEl = item.querySelector('.door-type');
+
+            const name = nameEl ? nameEl.value : "Дверь";
+            const area = areaEl ? parseFloat(areaEl.value) : 0;
+            const corr = envEl ? parseFloat(envEl.value) : 1.0;
+            const R_door = typeEl ? parseFloat(typeEl.value) : 0.45;
+
+            if (area > 0) {
+                const doorPeak = (area * deltaTPeak * corr) / R_door;
+                peakLossNoVent += doorPeak;
+                avgLoss += (area * deltaTAverage * corr) / R_door;
+                htmlDetails += `🚪 ${name}: <b>${Math.round(doorPeak)} Вт</b> (R=${R_door.toFixed(2)})<br>`;
+            }
+        }
+
+        // 4. Потолок
+        const ceilAreaEl = document.getElementById('ceilingArea');
+        const ceilEnvEl = document.getElementById('ceilingEnvironment');
+        const ceilLayersEl = document.getElementById('ceilingLayers');
+        
+        const ceilingArea = ceilAreaEl ? parseFloat(ceilAreaEl.value) : 0;
+        const ceilingCorr = ceilEnvEl ? parseFloat(ceilEnvEl.value) : 0;
+        const R_ceiling = calculateRFromLayersContainer(ceilLayersEl);
+        
+        if (ceilingArea > 0 && ceilingCorr > 0) {
+            const ceilingPeak = (ceilingArea * deltaTPeak * ceilingCorr) / R_ceiling;
+            peakLossNoVent += ceilingPeak;
+            avgLoss += (ceilingArea * deltaTAverage * ceilingCorr) / R_ceiling;
+            htmlDetails += `🔼 Потолок: <b>${Math.round(ceilingPeak)} Вт</b> (R=${R_ceiling.toFixed(2)})<br>`;
+        } else {
+            htmlDetails += `🔼 Потолок: <b>0 Вт</b> (Сверху отапливаемые соседи)<br>`;
+        }
+
+        // 5. Пол
+        const floorAreaEl = document.getElementById('floorArea');
+        const floorEnvEl = document.getElementById('floorEnvironment');
+        const floorLayersEl = document.getElementById('floorLayers');
+        
+        const floorArea = floorAreaEl ? parseFloat(floorAreaEl.value) : 0;
+        const floorCorr = floorEnvEl ? parseFloat(floorEnvEl.value) : 0;
+        const R_floor = calculateRFromLayersContainer(floorLayersEl);
+        
+        if (floorArea > 0 && floorCorr > 0) {
+            const floorPeak = (floorArea * deltaTPeak * floorCorr) / R_floor;
+            peakLossNoVent += floorPeak;
+            avgLoss += (floorArea * deltaTAverage * floorCorr) / R_floor;
+            htmlDetails += `🔽 Пол: <b>${Math.round(floorPeak)} Вт</b> (R=${R_floor.toFixed(2)})<br>`;
+        } else {
