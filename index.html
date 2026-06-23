@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Калькулятор Тепла Ереван v5</title>
+    <title>Калькулятор Тепла Ереван v6</title>
     <script src="https://telegram.org"></script>
     <style>
         body { font-family: sans-serif; background: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #000); padding: 15px; margin: 0; }
@@ -12,16 +12,16 @@
         .sub-block { background: #fff; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
         .form-group { margin-bottom: 10px; }
         label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; background: #fff; color: #000; }
         .layer-row { display: flex; gap: 5px; margin-bottom: 5px; }
         .layer-row select { flex: 2; }
         .layer-row input { flex: 1; }
-        button { width: 100%; padding: 12px; background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-calc { width: 100%; padding: 15px; background: #2481cc; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-secondary { background: #6c757d; font-size: 12px; padding: 6px; width: auto; margin: 5px 0 10px 0; display: inline-block; color: white; border-radius: 4px; border: none; cursor: pointer; }
         .btn-danger { background: #dc3545; font-size: 11px; padding: 4px; width: auto; color: white; border-radius: 4px; border: none; margin-top: 5px; cursor: pointer; }
-        .result-box { margin-top: 20px; padding: 12px; background: rgba(36, 129, 204, 0.1); border: 2px solid var(--tg-theme-button-color, #2481cc); border-radius: 8px; font-size: 14px; }
-        .sys-card { background: #fff; border: 1px solid #ddd; padding: 8px; margin-top: 8px; border-radius: 6px; }
-        .calc-details { background: rgba(0,0,0,0.05); padding: 8px; margin-bottom: 10px; border-radius: 6px; font-size: 13px; font-family: monospace; line-height: 1.4; }
+        .result-box { margin-top: 20px; padding: 12px; background: rgba(36, 129, 204, 0.1); border: 2px solid #2481cc; border-radius: 8px; font-size: 14px; }
+        .sys-card { background: #fff; border: 1px solid #ddd; padding: 8px; margin-top: 8px; border-radius: 6px; color: #000; }
+        .calc-details { background: rgba(0,0,0,0.05); padding: 8px; margin-bottom: 10px; border-radius: 6px; font-size: 13px; font-family: monospace; line-height: 1.4; color: #000; }
     </style>
 </head>
 <body>
@@ -33,7 +33,7 @@
         <div id="wallsContainer">
             <div class="sub-block wall-item">
                 <div class="form-group">
-                    <label>Название/Имя этой стены:</label>
+                    <label>Название этой стены:</label>
                     <input type="text" class="wall-name" value="Основная стена">
                 </div>
                 <div class="form-group">
@@ -102,7 +102,7 @@
                     <label>Куда ведет дверь?</label>
                     <select class="door-env">
                         <option value="0.6">В подъезд (коэф. 0.6)</option>
-                        <option value="1.0">На улицу / Частный сектор (коэф. 1.0)</option>
+                        <option value="1.0">На улицу (коэф. 1.0)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -176,91 +176,7 @@
         <button type="button" class="btn-secondary" onclick="addStaticLayer('floorLayers')">+ Добавить слой в пол</button>
     </div>
 
-    <button onclick="runCalculation()">РАССЧИТАТЬ ТЕПЛО И РАСХОДЫ</button>
-
-    <div id="output" class="result-box" style="display:none;"></div>
-
-    <script src="app.js"></script>
-</body>
-</html>
-    </div>
-
-    <!-- ПОТОЛОК -->
-    <div class="section">
-        <h3>2. Потолок / Перекрытие сверху</h3>
-        <div class="form-group">
-            <label>Площадь потолка (м²):</label>
-            <input type="number" id="ceilingArea" value="60">
-        </div>
-        <div class="form-group">
-            <label>Что находится СВЕРХУ?</label>
-            <select id="ceilingEnvironment">
-                <option value="0.0">Отапливаемый сосед (Потерь нет, коэф. 0)</option>
-                <option value="0.9">Холодный чердак под крышей (коэф. 0.9)</option>
-                <option value="1.0">Сразу плоская крыша / улица (коэф. 1.0)</option>
-            </select>
-        </div>
-        <label>Слои перекрытия сверху:</label>
-        <div id="ceilingLayers">
-            <div class="layer-row">
-                <select class="mat-select">
-                    <option value="concrete">Железобетонная плита (1.69)</option>
-                    <option value="minvata">Минеральная вата (0.045)</option>
-                    <option value="tuff">Туф-засыпка (0.65)</option>
-                </select>
-                <input type="number" class="mat-thick" value="22" placeholder="см">
-            </div>
-        </div>
-        <button type="button" class="btn-secondary" onclick="addLayer('ceilingLayers')">+ Добавить слой в потолок</button>
-    </div>
-
-    <!-- ПОЛ -->
-    <div class="section">
-        <h3>3. Пол / Перекрытие снизу</h3>
-        <div class="form-group">
-            <label>Площадь пола (м²):</label>
-            <input type="number" id="floorArea" value="60">
-        </div>
-        <div class="form-group">
-            <label>Что находится СНИЗУ?</label>
-            <select id="floorEnvironment">
-                <option value="0.0">Отапливаемый сосед снизу (коэф. 0)</option>
-                <option value="0.6">Неотапливаемый подвал / земля (коэф. 0.6)</option>
-                <option value="1.0">Пол на висячих сваях / арка (коэф. 1.0)</option>
-            </select>
-        </div>
-        <label>Слои перекрытия снизу:</label>
-        <div id="floorLayers">
-            <div class="layer-row">
-                <select class="mat-select">
-                    <option value="concrete">Железобетонная плита (1.69)</option>
-                    <option value="penoplex">Пеноплекс под стяжкой (0.035)</option>
-                    <option value="plaster">Цементная стяжка (0.93)</option>
-                </select>
-                <input type="number" class="mat-thick" value="22" placeholder="см">
-            </div>
-        </div>
-        <button type="button" class="btn-secondary" onclick="addLayer('floorLayers')">+ Добавить слой в пол</button>
-    </div>
-
-    <!-- ОКНА -->
-    <div class="section">
-        <h3>4. Окна</h3>
-        <div class="form-group">
-            <label>Общая площадь окон (м²):</label>
-            <input type="number" id="windowsArea" value="8">
-        </div>
-        <div class="form-group">
-            <label>Тип остекления:</label>
-            <select id="windowsType">
-                <option value="double_glazed">Двухкамерный стеклопакет (R=0.42)</option>
-                <option value="single_old">Старое дерево в 1-2 стекла (R=0.25)</option>
-                <option value="energy_efficient">Энергоэффективный с аргоном (R=0.75)</option>
-            </select>
-        </div>
-    </div>
-
-    <button onclick="runCalculation()">РАССЧИТАТЬ ТЕПЛО И РАСХОДЫ</button>
+    <button type="button" class="btn-calc" onclick="runCalculation()">РАССЧИТАТЬ ТЕПЛО И РАСХОДЫ</button>
 
     <div id="output" class="result-box" style="display:none;"></div>
 
