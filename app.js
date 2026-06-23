@@ -44,6 +44,7 @@ const MATERIAL_OPTIONS_HTML = `
     <select class="mat-select">
         <option value="panel_concrete">Панель (Керамзитобетон СССР)</option>
         <option value="tuff">Армянский туф</option>
+        <option value="block_hollow">Бетонный блок с полостями (20x20x40)</option>
         <option value="concrete">Железобетон плиты</option>
         <option value="brick">Кирпич сплошной</option>
         <option value="minvata">Минеральная вата</option>
@@ -52,6 +53,7 @@ const MATERIAL_OPTIONS_HTML = `
     </select>
     <input type="number" class="mat-thick" value="5" placeholder="см">
 `;
+
 
 function addLayerToElement(button) {
     const layersContainer = button.previousElementSibling;
