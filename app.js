@@ -92,7 +92,10 @@ function addNewWall() {
             <select class="wall-env">
                 <option value="1.0">Прямо на улицу (коэф. 1.0)</option>
                 <option value="0.6">В холодный подъезд / на балкон (коэф. 0.6)</option>
-            </select>
+                <option value="0.5">ПОДЗЕМНАЯ часть стены полуподвала (коэф. 0.5)</option>
+                <option value="0.4">К НЕОТАПЛИВАЕМЫМ соседям за стеной (коэф. 0.4)</option>
+           </select>
+
         </div>
         <label>Слои этой стены:</label>
         <div class="wall-layers">
