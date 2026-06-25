@@ -249,6 +249,7 @@ function runCalculation() {
         const out = document.getElementById('output');
         if (out) {
             out.style.display = 'block';
+            document.getElementById('btnSaveFile').style.display = 'block';
             out.innerHTML = `
                 <h3>📊 Детализация теплопотерь:</h3>
                 <div class="calc-details">${htmlDetails}</div>
@@ -265,5 +266,71 @@ function runCalculation() {
     } catch (err) {
         alert("Ошибка расчетов: " + err.message);
     }
+ function saveResultsToFile() {
+    try {
+        // Сбор текстовых данных со страницы смартфона
+        const detailsContainer = document.querySelector('.calc-details');
+        const outputContainer = document.getElementById('output');
+        
+        if (!outputContainer || outputContainer.style.display === 'none') {
+            alert('Сначала выполните расчет!');
+            return;
+        }
+
+        // Формируем красивый текстовый файл
+        let textContent = `=========================================\r\n`;
+        textContent += `ОТЧЕТ ПО ТЕПЛОПОТЕРЯМ КВАРТИРЫ (ЕРЕВАН)\r\n`;
+        textContent += `=========================================\r\n\r\n`;
+        
+        // Извлекаем детализацию в Ваттах (убираем HTML теги)
+        if (detailsContainer) {
+            let detailsText = detailsContainer.innerHTML
+                .replace(/<br>/g, '\r\n')
+                .replace(/<\/?[^>]+(>|$)/g, ""); // Очистка от тегов 🧱, 🪟, <b>
+            textContent += `ДЕТАЛИЗАЦИЯ ПОТЕРЬ ПРИ -15°C:\r\n${detailsText}\r\n`;
+        }
+
+        textContent += `-----------------------------------------\r\n`;
+        
+        // Извлекаем итоговые результаты и стоимость отопления
+        let resultsText = outputContainer.innerHTML
+            .split('<h3>💰 Стоимость за сезон')[0] // берем первую часть до стоимости
+            .replace(/<br>/g, '\r\n')
+            .replace(/<\/?[^>]+(>|$)/g, "")
+            .replace(/📊 Детализация теплопотерь:[\s\S]*?🔍 Итоговые результаты:/, "ИТОГОВЫЕ РЕЗУЛЬТАТЫ:");
+            
+        textContent += resultsText + `\r\n`;
+        textContent += `-----------------------------------------\r\n`;
+        textContent += `ОРИЕНТИРОВОЧНАЯ СТОИМОСТЬ ЗА ЗИМУ (136 дней):\r\n`;
+
+        // Собираем данные по Baxi, электрокотлу и кондиционеру
+        const cards = outputContainer.getElementsByClassName('sys-card');
+        for (let card of cards) {
+            textContent += `> ${card.innerText}\r\n`;
+        }
+        
+        textContent += `\r\n\r\nДата расчета: ${new Date().toLocaleDateString('ru-RU')}\r\n`;
+        textContent += `Создано в Telegram Mini App Калькулятор Тепла.`;
+
+        // Создаем Blob (двоичный объект) с текстом в кодировке UTF-8
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        
+        // Формируем имя файла, например: "teplo_report_24_06_2026.txt"
+        const dateStr = new Date().toLocaleDateString('ru-RU').replace(/\./g, '_');
+        link.download = `teplo_report_${dateStr}.txt`;
+        
+        // Запуск скачивания на мобильном устройстве
+        link.href = window.URL.createObjectURL(blob);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+    } catch (err) {
+        alert("Не удалось сохранить файл: " + err.message);
+    }
+}
+   
     }
                                                  
