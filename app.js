@@ -266,6 +266,8 @@ function runCalculation() {
     } catch (err) {
         alert("Ошибка расчетов: " + err.message);
     }
+}
+
  function saveResultsToFile() {
     try {
         // Сбор текстовых данных со страницы смартфона
@@ -332,5 +334,5 @@ function runCalculation() {
     }
 }
    
-    }
+    
                                                  
